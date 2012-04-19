@@ -1,7 +1,7 @@
 webgl-texture-utils
 ===================
 
-Utilities for working with WebGL textures
+Utilities for working with WebGL textures with an emphasis on loading compressed formats.
 
 dds.js
 --------------------
