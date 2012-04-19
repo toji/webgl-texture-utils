@@ -99,33 +99,33 @@
     var off_pfFourCC = 21;
     
     // Little reminder for myself where the above values come from
-    /*var DDS_PIXELFORMAT = Struct.create(
-        Struct.int32("dwSize"), // offset: 19
-        Struct.int32("dwFlags"),
-        Struct.string("dwFourCC", 4),
-        Struct.int32("dwRGBBitCount"),
-        Struct.int32("dwRBitMask"),
-        Struct.int32("dwGBitMask"),
-        Struct.int32("dwBBitMask"),
-        Struct.int32("dwABitMask") // offset: 26
-    );
+    /*DDS_PIXELFORMAT {
+        int32 dwSize; // offset: 19
+        int32 dwFlags;
+        char[4] dwFourCC;
+        int32 dwRGBBitCount;
+        int32 dwRBitMask;
+        int32 dwGBitMask;
+        int32 dwBBitMask;
+        int32 dwABitMask; // offset: 26
+    };
     
-    var DDS_HEADER = Struct.create(
-        Struct.int32("dwSize"), // 1
-        Struct.int32("dwFlags"), 
-        Struct.int32("dwHeight"),
-        Struct.int32("dwWidth"),
-        Struct.int32("dwPitchOrLinearSize"),
-        Struct.int32("dwDepth"),
-        Struct.int32("dwMipMapCount"), // offset: 7
-        Struct.array("dwReserved1", Struct.int32(), 11),
-        Struct.struct("ddspf", DDS_PIXELFORMAT), // offset 19
-        Struct.int32("dwCaps"), // offset: 27
-        Struct.int32("dwCaps2"),
-        Struct.int32("dwCaps3"),
-        Struct.int32("dwCaps4"),
-        Struct.int32("dwReserved2") // offset 31
-    );*/
+    DDS_HEADER {
+        int32 dwSize; // 1
+        int32 dwFlags; 
+        int32 dwHeight;
+        int32 dwWidth;
+        int32 dwPitchOrLinearSize;
+        int32 dwDepth;
+        int32 dwMipMapCount; // offset: 7
+        int32[11] dwReserved1;
+        DDS_PIXELFORMAT ddspf; // offset 19
+        int32 dwCaps; // offset: 27
+        int32 dwCaps2;
+        int32 dwCaps3;
+        int32 dwCaps4;
+        int32 dwReserved2; // offset 31
+    };*/
 
     /**
      * Parses a DDS file from the given arrayBuffer and uploads it into the currently bound texture
@@ -138,7 +138,11 @@
      * @returns {number} Number of mipmaps uploaded, 0 if there was an error
      */
     var uploadDDSLevels = global.uploadDDSLevels = function (gl, ext, arrayBuffer, loadMipmaps) {
-        var header = new Int32Array(arrayBuffer, 0, headerLengthInt);
+        var header = new Int32Array(arrayBuffer, 0, headerLengthInt),
+            fourCC, blockBytes, internalFormat,
+            width, height, dataLength, dataOffset,
+            byteArray, mipmapCount, i;
+
         if(header[off_magic] != DDS_MAGIC) {
             console.error("Invalid magic number in DDS header");
             return 0;
@@ -149,10 +153,7 @@
             return 0;
         }
 
-        var fourCC = header[off_pfFourCC];
-        var divSize = 4, 
-            blockBytes, internalFormat;
-
+        fourCC = header[off_pfFourCC];
         switch(fourCC) {
             case FOURCC_DXT1:
                 blockBytes = 8;
@@ -169,22 +170,17 @@
                 return null;
         }
 
-        var width = header[off_width],
-            height = header[off_height];
-
-        var dataLength = Math.max( divSize, width )/divSize * Math.max( divSize, height )/divSize * blockBytes;
-        var dataOffset = header[off_size] + 4; 
-        var byteArray;
-        var i;
-
-        var mipmapCount = 1;
-
+        mipmapCount = 1;
         if(header[off_flags] & DDSD_MIPMAPCOUNT && loadMipmaps !== false) {
             mipmapCount = Math.max(1, header[off_mipmapCount]);
         }
 
+        width = header[off_width];
+        height = header[off_height];
+        dataOffset = header[off_size] + 4;
+
         for(i = 0; i < mipmapCount; ++i) {
-            dataLength = Math.max( divSize, width )/divSize * Math.max( divSize, height )/divSize * blockBytes;
+            dataLength = Math.max( 4, width )/4 * Math.max( 4, height )/4 * blockBytes;
             byteArray = new Uint8Array(arrayBuffer, dataOffset, dataLength);
             gl.compressedTexImage2D(gl.TEXTURE_2D, i, internalFormat, width, height, 0, byteArray);
             dataOffset += dataLength;
@@ -206,8 +202,8 @@
      * @returns {WebGLTexture} New texture that will receive the DDS image data
      */
     global.loadDDSTexture = function(gl, ext, src, callback) {
-        var texture = gl.createTexture();
-        var ddsXhr = new XMLHttpRequest();
+        var texture = gl.createTexture(),
+            ddsXhr = new XMLHttpRequest();
         
         ddsXhr.open('GET', src, true);
         ddsXhr.responseType = "arraybuffer";
