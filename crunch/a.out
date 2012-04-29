@@ -1,4 +1,0 @@
-#!/bin/sh
-lli=${LLVMINTERP-lli}
-exec $lli \
-    /var/folders/34/y7wmqjvx1zv89hn8sr16s1xc0000gn/T/tmp0Cf1nk/crn_decomp.bc ${1+"$@"}
