@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+
+<!--
+Copyright (c) 2012 Brandon Jones
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not
+    claim that you wrote the original software. If you use this software
+    in a product, an acknowledgment in the product documentation would be
+    appreciated but is not required.
+
+    2. Altered source versions must be plainly marked as such, and must not
+    be misrepresented as being the original software.
+
+    3. This notice may not be removed or altered from any source
+    distribution.
+-->
+
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+
+        <title>Texture Utility Sample</title>
+        <style>
+            html,
+            body,
+            canvas {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+            }
+
+            .labels {
+                display: table;
+            }
+
+        </style>
+    </head>
+    <body>
+        <canvas id="webgl-canvas"></canvas>
+
+        <script src="sample/js/gl-matrix-min.js"></script>
+        <script src="sample/js/gl-util.js"></script>
+        <script src="build/texture-util.js"></script>
+        <script>
+            "use strict";
+
+            var textureSet = [
+                {src: "sample/img/test.jpg", label: "JPEG"},
+                {src: "sample/img/test.png", label: "PNG"},
+                {src: "sample/img/test.gif", label: "gif"},
+                {src: "sample/img/test.bmp", label: "BMP"},
+                {src: "sample/img/test.tga", label: "TGA"},
+                {src: "sample/img/test-dxt1.dds", label: "DDS (DXT1)"},
+                {src: "sample/img/test-dxt5.dds", label: "DDS (DXT5)"},
+                {src: "sample/img/test-dxt1.crn", label: "Crunch (DXT1)"},
+                {src: "sample/img/test-dxt5.crn", label: "Crunch (DXT5)"}
+            ];
+
+            var rows = 3;
+            var cols = 3;
+
+            //
+            // Setup the WebGL context
+            //
+
+            var canvas = document.getElementById("webgl-canvas");
+            var gl = getGLContext(canvas);
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+
+            var cubeVS = [
+                "attribute vec3 position;",
+                "attribute vec2 texture;",
+                
+                "uniform mat4 viewMat;",
+                "uniform mat4 projMat;",
+                "varying vec2 texCoord;",
+
+                "void main(void) {",
+                "   texCoord = texture;",
+                "   gl_Position = projMat * viewMat * vec4(position, 1.0);",
+                "}"
+            ].join("\n");
+
+            var cubeFS = [
+                "precision highp float;",
+
+                "uniform sampler2D diffuse;",
+                "varying vec2 texCoord;",
+                
+                "void main(void) {",
+                "   gl_FragColor = texture2D(diffuse, texCoord);",
+                "}"
+            ].join("\n");
+            
+            var shader = createGLProgram(gl, cubeVS, cubeFS);
+            gl.useProgram(shader.program);
+
+            var quadVerts = [
+                0, -1, 0, 0, 1,
+                1, -1, 0, 1, 1,
+                0, 0, 0, 0, 0,
+                1, 0, 0, 1, 0
+            ];
+
+            var quadIndices = [
+                0, 1, 2,
+                2, 1, 3
+            ];
+
+            var vertBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quadVerts), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(shader.attribute.position);
+
+            var indexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(quadIndices), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(shader.attribute.texture);
+
+            gl.vertexAttribPointer(shader.attribute.position, 3, gl.FLOAT, false, 20, 0);
+            gl.vertexAttribPointer(shader.attribute.texture, 2, gl.FLOAT, false, 20, 12);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.uniform1i(shader.uniform.diffuse, 0);
+
+            //
+            // Texture Test
+            //
+
+            var textureLoader = new TextureUtil.TextureLoader(gl);
+            var textures = [];
+            
+            var i, l;
+            for(i = 0, l = textureSet.length; i < l; ++i) {
+                textures.push(textureLoader.load(textureSet[i].src));
+            }
+            
+            var viewMat = mat4.create();
+            var projMat = mat4.ortho(0, cols, -rows, 0, 0, 1);
+            gl.uniformMatrix4fv(shader.uniform.projMat, false, projMat);
+
+            // Yes, yes. Set timeout is evil, I know. I just needed a simple refresh without including a RAF shim.
+            setInterval(function() {
+                var i, l;
+                mat4.identity(viewMat);
+                for(i = 0, l = textures.length; i < l; ++i) {
+                    gl.bindTexture(gl.TEXTURE_2D, textures[i]);
+                    gl.uniformMatrix4fv(shader.uniform.viewMat, false, viewMat);
+                    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+                    mat4.translate(viewMat, [1, 0, 0]);
+                    if((i+1) % cols == 0) {
+                        mat4.translate(viewMat, [-cols, -1, 0]);
+                    }
+                }
+            }, 1000);
+        </script>
+    </body>
+</html>
