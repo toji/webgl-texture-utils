@@ -26,6 +26,10 @@ define([
     "texture-util/crn_decomp.js"
 ], function (dss) {
 
+    // If you want to force crunch to decode on the main browser process
+    // set this to false. Otherwise it will decode in a worker by default.
+    var CRUNCH_DECODE_IN_WORKER = true;
+
     // Taken from crnlib.h
     var cCRNFmtInvalid = -1;
 
@@ -132,37 +136,115 @@ define([
         return 1;
     }
 
-    /**
-     * Creates a texture from the crunched texture at the given URL. Simple shortcut for the most common use case
-     *
-     * @param {WebGLRenderingContext} gl WebGL rendering context
-     * @param {WebGLCompressedTextureS3TC} ext WEBGL_compressed_texture_s3tc extension object
-     * @param {string} src URL to DDS file to be loaded
-     * @param {function} [callback] callback to be fired when the texture has finished loading
-     *
-     * @returns {WebGLTexture} New texture that will receive the DDS image data
-     */
-    function loadCRNTextureEx(gl, ext, src, texture, loadMipmaps, callback) {
-        var xhr = new XMLHttpRequest();
-        
-        xhr.open('GET', src, true);
-        xhr.responseType = "arraybuffer";
-        xhr.onload = function() {
-            if(this.status == 200) {
-                gl.bindTexture(gl.TEXTURE_2D, texture);
-                var mipmaps = uploadCRNLevels(gl, ext, this.response, loadMipmaps);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mipmaps > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
-            }
-            
-            if(callback) {
-                callback(texture);
-            }
-        };
-        xhr.send(null);
+    var loadCRNTextureEx;
 
-        return texture;
+    if(CRUNCH_DECODE_IN_WORKER) {
+        loadCRNTextureEx = (function() {
+            var PendingCrunchTextureRequest = function(gl, ext, texture, callback) {
+                this.gl = gl;
+                this.ext = ext;
+                this.texture = texture;
+                this.callback = callback;
+            };
+
+            var pendingCrunchTextures = {};
+            var crunchWorker = new Worker("texture-util/crunch-worker.js");
+            
+            crunchWorker.onmessage = function(msg) {
+                var data = msg.data;
+                var pendingTexture = pendingCrunchTextures[data.src];
+
+                if(data.error) {
+                    console.error("Error in Crunch worker:", data.error);
+                    if(pendingTexture.callback) {
+                        pendingTexture.callback(pendingTexture.texture);
+                    }
+                    delete pendingCrunchTextures[data.src];
+                }
+
+                var gl = pendingTexture.gl;
+                var ext = pendingTexture.ext;
+
+                var internalFormat;
+                switch(data.format) {
+                    case cCRNFmtDXT1:
+                        internalFormat = ext ? ext.COMPRESSED_RGB_S3TC_DXT1_EXT : null;
+                        break;
+
+                    case cCRNFmtDXT3:
+                        internalFormat = ext ? ext.COMPRESSED_RGBA_S3TC_DXT3_EXT : null;
+                        break;
+
+                    case cCRNFmtDXT5:
+                        internalFormat = ext ? ext.COMPRESSED_RGBA_S3TC_DXT5_EXT : null;
+                        break;
+
+                    default:
+                        console.error("Unsupported image format");
+                        return;
+                }
+
+                gl.bindTexture(gl.TEXTURE_2D, pendingTexture.texture);
+
+                if(ext) {
+                    gl.compressedTexImage2D(gl.TEXTURE_2D, data.level, internalFormat, data.width, data.height, 0, data.dxtData);
+                } else {
+                    gl.texImage2D(gl.TEXTURE_2D, data.level, gl.RGB, data.width, data.height, 0, gl.RGB, gl.UNSIGNED_SHORT_5_6_5, data.dxtData);
+                    if(data.completed && data.levels) {
+                        gl.generateMipmap(gl.TEXTURE_2D);
+                    }
+                }
+
+                if(data.completed) {
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, data.levels > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+
+                    if(pendingTexture.callback) {
+                        pendingTexture.callback(pendingTexture.texture);
+                    }
+
+                    delete pendingCrunchTextures[data.src];
+                }
+            };
+
+            return function (gl, ext, src, texture, loadMipmaps, callback) {
+                pendingCrunchTextures[src] = new PendingCrunchTextureRequest(gl, ext, texture, callback);
+                crunchWorker.postMessage({src: src, ddsSupported: !!ext, loadMipmaps: loadMipmaps});
+            };
+        })();
+    } else {
+        /**
+         * Creates a texture from the crunched texture at the given URL.
+         *
+         * @param {WebGLRenderingContext} gl WebGL rendering context
+         * @param {WebGLCompressedTextureS3TC} ext WEBGL_compressed_texture_s3tc extension object
+         * @param {string} src URL to DDS file to be loaded
+         * @param {function} [callback] callback to be fired when the texture has finished loading
+         *
+         * @returns {WebGLTexture} New texture that will receive the DDS image data
+         */
+        loadCRNTextureEx = function (gl, ext, src, texture, loadMipmaps, callback) {
+            var xhr = new XMLHttpRequest();
+            
+            xhr.open('GET', src, true);
+            xhr.responseType = "arraybuffer";
+            xhr.onload = function() {
+                if(this.status == 200) {
+                    gl.bindTexture(gl.TEXTURE_2D, texture);
+                    var mipmaps = uploadCRNLevels(gl, ext, this.response, loadMipmaps);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mipmaps > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+                }
+                
+                if(callback) {
+                    callback(texture);
+                }
+            };
+            xhr.send(null);
+        };
     }
+
+    
 
     /**
      * Creates a texture from the crunched texture at the given URL. Simple shortcut for the most common use case
