@@ -26,9 +26,9 @@ define([
     "texture-util/crn_decomp.js"
 ], function (dss) {
 
-    // If you want to force crunch to decode on the main browser process
-    // set this to false. Otherwise it will decode in a worker by default.
-    var CRUNCH_DECODE_IN_WORKER = true;
+    // If you want to force crunch to decode in a worker set this to true.
+    // Otherwise it will decode in the main browser process by default.
+    var CRUNCH_DECODE_IN_WORKER = false;
 
     // Taken from crnlib.h
     var cCRNFmtInvalid = -1;
