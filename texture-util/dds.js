@@ -273,8 +273,8 @@ define([], function () {
                 byteArray = new Uint8Array(arrayBuffer, dataOffset, dataLength);
                 gl.compressedTexImage2D(gl.TEXTURE_2D, i, internalFormat, width, height, 0, byteArray);
                 dataOffset += dataLength;
-				width = Math.max( width * 0.5, 1 );
-				height = Math.max( height * 0.5, 1 );
+                width = Math.max( width * 0.5, 1 );
+                height = Math.max( height * 0.5, 1 );
             }
         } else {
             if(fourCC == FOURCC_DXT1) {
