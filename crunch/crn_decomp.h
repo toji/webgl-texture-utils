@@ -314,7 +314,6 @@ namespace crnd
 #include <memory.h>
 #else
 #include <malloc.h>
-#include <process.h>
 #endif 
 #include <stdarg.h>
 #include <new> // needed for placement new, _msize, _expand
