@@ -95,7 +95,7 @@ define([], function () {
             }
 
             if(callback) {
-                callback(texture);
+                callback(texture, imageData.width, imageData.height);
             }
         };
         xhr.send(null);

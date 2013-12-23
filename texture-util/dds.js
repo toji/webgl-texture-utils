@@ -255,7 +255,7 @@ define([], function () {
 
             default:
                 console.error("Unsupported FourCC code:", int32ToFourCC(fourCC));
-                return null;
+                return {mipmaps: 0, width: 0, height: 0 };
         }
 
         mipmapCount = 1;
@@ -266,6 +266,9 @@ define([], function () {
         width = header[off_width];
         height = header[off_height];
         dataOffset = header[off_size] + 4;
+
+        var texWidth = width;
+        var texHeight = height;
 
         if(ext) {
             for(i = 0; i < mipmapCount; ++i) {
@@ -287,11 +290,11 @@ define([], function () {
                 }
             } else {
                 console.error("No manual decoder for", int32ToFourCC(fourCC), "and no native support");
-                return 0;
+                return {mipmaps: 0, width: 0, height: 0 };
             }
         }
 
-        return mipmapCount;
+        return {mipmaps: mipmapCount, width: texWidth, height: texHeight };
     }
 
     /**
@@ -312,13 +315,13 @@ define([], function () {
         xhr.onload = function() {
             if(this.status == 200) {
                 gl.bindTexture(gl.TEXTURE_2D, texture);
-                var mipmaps = uploadDDSLevels(gl, ext, this.response, loadMipmaps);
+                var data = uploadDDSLevels(gl, ext, this.response, loadMipmaps);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mipmaps > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, data.mipmaps > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
             }
 
             if(callback) {
-                callback(texture);
+                callback(texture, data.width, data.height);
             }
         };
         xhr.send(null);
