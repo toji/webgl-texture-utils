@@ -58,7 +58,7 @@ define([], function () {
             }
 
             loadedCallback(self);
-            if(self.callback) { self.callback(self.texture); }
+            if(self.callback) { self.callback(self.texture, self.image.width, self.image.height); }
         });
     };
 

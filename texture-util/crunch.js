@@ -91,7 +91,7 @@ define([
 
             default:
                 console.error("Unsupported image format");
-                return 0;
+                return { mipmaps: 0, width: 0, height: 0 };
         }
 
         width = Module._crn_get_width(src, srcSize);
@@ -99,6 +99,8 @@ define([
         levels = Module._crn_get_levels(src, srcSize);
         dstSize = Module._crn_get_uncompressed_size(src, srcSize, 0);
         dst = Module._malloc(dstSize);
+
+        var texWidth = width, texHeight = height;
 
         if(ext) {
             /*Module._crn_decompress(src, srcSize, dst, dstSize);
@@ -126,14 +128,18 @@ define([
                 }
             } else {
                 console.error("No manual decoder for format and no native support");
-                return 0;
+                return { mipmaps: 0, width: 0, height: 0 };
             }
         }
         
         Module._free(src);
         Module._free(dst);
 
-        return 1;
+        return {
+            mipmaps: 1,
+            width: texWidth,
+            height: texHeight 
+        };
     }
 
     var loadCRNTextureEx;
@@ -200,7 +206,7 @@ define([
                     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, data.levels > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
 
                     if(pendingTexture.callback) {
-                        pendingTexture.callback(pendingTexture.texture);
+                        pendingTexture.callback(pendingTexture.texture, data.width, data.height);
                     }
 
                     delete pendingCrunchTextures[data.src];
@@ -231,13 +237,13 @@ define([
             xhr.onload = function() {
                 if(this.status == 200) {
                     gl.bindTexture(gl.TEXTURE_2D, texture);
-                    var mipmaps = uploadCRNLevels(gl, ext, this.response, loadMipmaps);
+                    var data = uploadCRNLevels(gl, ext, this.response, loadMipmaps);
                     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mipmaps > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, data.mipmaps > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
                 }
                 
                 if(callback) {
-                    callback(texture);
+                    callback(texture, data.width, data.height);
                 }
             };
             xhr.send(null);
@@ -253,7 +259,7 @@ define([
      * @param {WebGLCompressedTextureS3TC} ext WEBGL_compressed_texture_s3tc extension object
      * @param {string} src URL to DDS file to be loaded
      * @param {function} [callback] callback to be fired when the texture has finished loading
-     *
+     * 
      * @returns {WebGLTexture} New texture that will receive the DDS image data
      */
     function loadCRNTexture(gl, ext, src, callback) {

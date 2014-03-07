@@ -151,7 +151,9 @@ freely, subject to the following restrictions:
                 
                 var i, l;
                 for(i = 0, l = textureSet.length; i < l; ++i) {
-                    textures.push(textureLoader.load(textureSet[i].src));
+                    textures.push(textureLoader.load(textureSet[i].src, function(texture, width, height) {
+                        console.log("Texture Size:", width, height);
+                    }));
                 }
                 
                 var viewMat = mat4.create();
