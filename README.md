@@ -3,6 +3,8 @@ webgl-texture-utils
 
 Utilities for working with WebGL textures with an emphasis on loading compressed formats.
 
+*NOTE:* This code is pretty old by now, and I don't intend to do further development on it. You may want to try using [webgl-texture-util.js](https://github.com/toji/texture-tester/blob/master/js/webgl-texture-util.js) from my [texture-tester](http://toji.github.io/texture-tester/) project instead.
+
 Usage
 --------------------
 The quickest way to get up and running is to include [texture-util.js](https://raw.github.com/toji/webgl-texture-utils/master/build/texture-util.js) from the build folder, which will add a TextureUtil
