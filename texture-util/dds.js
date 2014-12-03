@@ -341,7 +341,7 @@ define([], function () {
      */
     function loadDDSTexture(gl, ext, src, callback) {
         var texture = gl.createTexture();
-        loadDDSTextureEx(gl, src, texture, true, callback);
+        loadDDSTextureEx(gl, ext, src, texture, true, callback);
         return texture;
     }
 
