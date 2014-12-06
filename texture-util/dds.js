@@ -30,11 +30,11 @@
 define([], function () {
 
     "use strict";
-    
+
     // All values and structures referenced from:
     // http://msdn.microsoft.com/en-us/library/bb943991.aspx/
     var DDS_MAGIC = 0x20534444;
-    
+
     var DDSD_CAPS = 0x1,
         DDSD_HEIGHT = 0x2,
         DDSD_WIDTH = 0x4,
@@ -47,7 +47,7 @@ define([], function () {
     var DDSCAPS_COMPLEX = 0x8,
         DDSCAPS_MIPMAP = 0x400000,
         DDSCAPS_TEXTURE = 0x1000;
-        
+
     var DDSCAPS2_CUBEMAP = 0x200,
         DDSCAPS2_CUBEMAP_POSITIVEX = 0x400,
         DDSCAPS2_CUBEMAP_NEGATIVEX = 0x800,
@@ -98,7 +98,7 @@ define([], function () {
 
     var off_pfFlags = 20;
     var off_pfFourCC = 21;
-    
+
     // Little reminder for myself where the above values come from
     /*DDS_PIXELFORMAT {
         int32 dwSize; // offset: 19
@@ -110,7 +110,7 @@ define([], function () {
         int32 dwBBitMask;
         int32 dwABitMask; // offset: 26
     };
-    
+
     DDS_HEADER {
         int32 dwSize; // 1
         int32 dwFlags;
@@ -159,7 +159,7 @@ define([], function () {
         var dstI = 0;
         var i = 0;
         var r0 = 0, g0 = 0, b0 = 0, r1 = 0, g1 = 0, b1 = 0;
-    
+
         var blockWidth = width / 4;
         var blockHeight = height / 4;
         for (var blockY = 0; blockY < blockHeight; blockY++) {
@@ -230,7 +230,7 @@ define([], function () {
             console.error("Invalid magic number in DDS header");
             return 0;
         }
-        
+
         if(!header[off_pfFlags] & DDPF_FOURCC) {
             console.error("Unsupported format, must contain a FourCC code");
             return 0;
@@ -276,8 +276,8 @@ define([], function () {
                 byteArray = new Uint8Array(arrayBuffer, dataOffset, dataLength);
                 gl.compressedTexImage2D(gl.TEXTURE_2D, i, internalFormat, width, height, 0, byteArray);
                 dataOffset += dataLength;
-                width *= 0.5;
-                height *= 0.5;
+                width = Math.max( width * 0.5, 1 );
+                height = Math.max( height * 0.5, 1 );
             }
         } else {
             if(fourCC == FOURCC_DXT1) {
@@ -309,7 +309,7 @@ define([], function () {
      */
     function loadDDSTextureEx(gl, ext, src, texture, loadMipmaps, callback) {
         var xhr = new XMLHttpRequest();
-        
+
         xhr.open('GET', src, true);
         xhr.responseType = "arraybuffer";
         xhr.onload = function() {
